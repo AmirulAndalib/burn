@@ -10,16 +10,17 @@ use crate::{
     model::TextClassificationModelConfig,
 };
 use burn::{
-    config::Config,
     data::{dataloader::DataLoaderBuilder, dataset::transform::SamplerDataset},
     lr_scheduler::noam::NoamLrSchedulerConfig,
-    module::Module,
     nn::transformer::TransformerEncoderConfig,
     optim::AdamConfig,
+    prelude::*,
     record::{CompactRecorder, Recorder},
     tensor::backend::AutodiffBackend,
     train::{
-        metric::{AccuracyMetric, CUDAMetric, LearningRateMetric, LossMetric},
+        metric::{
+            AccuracyMetric, CudaMetric, IterationSpeedMetric, LearningRateMetric, LossMetric,
+        },
         LearnerBuilder,
     },
 };
@@ -30,7 +31,7 @@ use std::sync::Arc;
 pub struct ExperimentConfig {
     pub transformer: TransformerEncoderConfig,
     pub optimizer: AdamConfig,
-    #[config(default = 512)]
+    #[config(default = 256)]
     pub max_seq_length: usize,
     #[config(default = 32)]
     pub batch_size: usize,
@@ -87,22 +88,23 @@ pub fn train<B: AutodiffBackend, D: TextClassificationDataset + 'static>(
     let lr_scheduler = NoamLrSchedulerConfig::new(1e-2)
         .with_warmup_steps(1000)
         .with_model_size(config.transformer.d_model)
-        .init();
+        .init()
+        .unwrap();
 
     // Initialize learner
     let learner = LearnerBuilder::new(artifact_dir)
-        .metric_train(CUDAMetric::new())
-        .metric_valid(CUDAMetric::new())
+        .metric_train(CudaMetric::new())
+        .metric_valid(CudaMetric::new())
+        .metric_train(IterationSpeedMetric::new())
+        .metric_train_numeric(LossMetric::new())
+        .metric_valid_numeric(LossMetric::new())
         .metric_train_numeric(AccuracyMetric::new())
         .metric_valid_numeric(AccuracyMetric::new())
-        .metric_train_numeric(LossMetric::new())
-        .metric_valid_numeric(LossMetric::new())
-        .metric_train_numeric(LossMetric::new())
-        .metric_valid_numeric(LossMetric::new())
         .metric_train_numeric(LearningRateMetric::new())
         .with_file_checkpointer(CompactRecorder::new())
         .devices(devices)
         .num_epochs(config.num_epochs)
+        .summary()
         .build(model, optim, lr_scheduler);
 
     // Train the model

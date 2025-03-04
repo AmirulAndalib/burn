@@ -9,12 +9,13 @@ use core::convert::Into;
 use crate::model::{label::LABELS, normalizer::Normalizer, squeezenet::Model as SqueezenetModel};
 
 use burn::{
-    backend::NdArray,
-    tensor::{activation::softmax, backend::Backend, Tensor},
+    backend::{wgpu::init_setup_async, NdArray},
+    prelude::*,
+    tensor::activation::softmax,
 };
 
+use burn::backend::wgpu::{graphics::AutoGraphicsApi, WebGpu, WgpuDevice};
 use burn_candle::Candle;
-use burn_wgpu::{compute::init_async, AutoGraphicsApi, Wgpu, WgpuDevice};
 
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
@@ -36,8 +37,8 @@ pub enum ModelType {
     /// The model is loaded to the NdArray backend
     WithNdArrayBackend(Model<NdArray<f32>>),
 
-    /// The model is loaded to the Wgpu backend
-    WithWgpuBackend(Model<Wgpu<AutoGraphicsApi, f32, i32>>),
+    /// The model is loaded to the WebGpu backend
+    WithWgpuBackend(Model<WebGpu<f32, i32>>),
 }
 
 /// The image is 224x224 pixels with 3 channels (RGB)
@@ -109,7 +110,7 @@ impl ImageClassifier {
         log::info!("Loading the model to the Wgpu backend");
         let start = Instant::now();
         let device = WgpuDevice::default();
-        init_async::<AutoGraphicsApi>(&device).await;
+        init_setup_async::<AutoGraphicsApi>(&device, Default::default()).await;
         self.model = ModelType::WithWgpuBackend(Model::new(&device));
         let duration = start.elapsed();
         log::debug!("Model is loaded to the Wgpu backend in {:?}", duration);
@@ -141,8 +142,8 @@ impl<B: Backend> Model<B> {
     /// Normalizes input and runs inference on the image
     pub async fn forward(&self, input: &[f32]) -> Vec<f32> {
         // Reshape from the 1D array to 3d tensor [ width, height, channels]
-        let input: Tensor<B, 4> =
-            Tensor::from_floats(input, &B::Device::default()).reshape([1, CHANNELS, HEIGHT, WIDTH]);
+        let input = Tensor::<B, 1>::from_floats(input, &B::Device::default())
+            .reshape([1, CHANNELS, HEIGHT, WIDTH]);
 
         // Normalize input: make between [-1,1] and make the mean=0 and std=1
         let input = self.normalizer.normalize(input);
@@ -151,16 +152,15 @@ impl<B: Backend> Model<B> {
         let output = self.model.forward(input);
 
         // Convert the model output into probability distribution using softmax formula
-        let probabilies = softmax(output, 1);
-
-        #[cfg(not(target_family = "wasm"))]
-        let result = probabilies.into_data().convert::<f32>().value;
+        let probabilities = softmax(output, 1);
 
         // Forces the result to be computed
-        #[cfg(target_family = "wasm")]
-        let result = probabilies.into_data().await.convert::<f32>().value;
-
-        result
+        probabilities
+            .into_data_async()
+            .await
+            .convert::<f32>()
+            .to_vec()
+            .unwrap()
     }
 }
 
@@ -173,18 +173,18 @@ pub struct InferenceResult {
 }
 
 /// Returns the top 5 classes and convert them into a JsValue
-fn top_5_classes(probabilies: Vec<f32>) -> Result<JsValue, JsValue> {
+fn top_5_classes(probabilities: Vec<f32>) -> Result<JsValue, JsValue> {
     // Convert the probabilities into a vector of (index, probability)
-    let mut probabilies: Vec<_> = probabilies.iter().enumerate().collect();
+    let mut probabilities: Vec<_> = probabilities.iter().enumerate().collect();
 
     // Sort the probabilities in descending order
-    probabilies.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
+    probabilities.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
 
     // Take the top 5 probabilities
-    probabilies.truncate(5);
+    probabilities.truncate(5);
 
     // Convert the probabilities into InferenceResult
-    let result: Vec<InferenceResult> = probabilies
+    let result: Vec<InferenceResult> = probabilities
         .into_iter()
         .map(|(index, probability)| InferenceResult {
             index,

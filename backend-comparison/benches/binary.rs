@@ -3,7 +3,7 @@ use burn::tensor::{backend::Backend, Distribution, Shape, Tensor};
 use burn_common::benchmark::{run_benchmark, Benchmark};
 
 pub struct BinaryBenchmark<B: Backend, const D: usize> {
-    shape: Shape<D>,
+    shape: Shape,
     device: B::Device,
 }
 
@@ -15,12 +15,11 @@ impl<B: Backend, const D: usize> Benchmark for BinaryBenchmark<B, D> {
     }
 
     fn shapes(&self) -> Vec<Vec<usize>> {
-        vec![self.shape.dims.into()]
+        vec![self.shape.dims.clone()]
     }
 
     fn execute(&self, (lhs, rhs): Self::Args) {
-        // Choice of add is arbitrary
-        B::float_add(lhs.clone().into_primitive(), rhs.clone().into_primitive());
+        let _ = lhs + rhs;
     }
 
     fn prepare(&self) -> Self::Args {
@@ -31,18 +30,30 @@ impl<B: Backend, const D: usize> Benchmark for BinaryBenchmark<B, D> {
     }
 
     fn sync(&self) {
-        B::sync(&self.device)
+        B::sync(&self.device);
     }
 }
 
 #[allow(dead_code)]
-fn bench<B: Backend>(device: &B::Device) {
+fn bench<B: Backend>(
+    device: &B::Device,
+    feature_name: &str,
+    url: Option<&str>,
+    token: Option<&str>,
+) {
     let benchmark = BinaryBenchmark::<B, 3> {
         shape: [32, 512, 1024].into(),
         device: device.clone(),
     };
 
-    save::<B>(vec![run_benchmark(benchmark)], device).unwrap();
+    save::<B>(
+        vec![run_benchmark(benchmark)],
+        device,
+        feature_name,
+        url,
+        token,
+    )
+    .unwrap();
 }
 
 fn main() {
