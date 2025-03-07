@@ -1,3 +1,8 @@
+use burn::{backend::Autodiff, tensor::backend::Backend};
+use simple_regression::{inference, training};
+
+static ARTIFACT_DIR: &str = "/tmp/burn-example-regression";
+
 #[cfg(any(
     feature = "ndarray",
     feature = "ndarray-blas-netlib",
@@ -6,20 +11,16 @@
 ))]
 mod ndarray {
     use burn::backend::ndarray::{NdArray, NdArrayDevice};
-    use burn::backend::Autodiff;
-    use regression::training;
 
     pub fn run() {
         let device = NdArrayDevice::Cpu;
-        training::run::<Autodiff<NdArray>>(device);
+        super::run::<NdArray>(device.clone());
     }
 }
 
 #[cfg(feature = "tch-gpu")]
 mod tch_gpu {
     use burn::backend::libtorch::{LibTorch, LibTorchDevice};
-    use burn::backend::Autodiff;
-    use regression::training;
 
     pub fn run() {
         #[cfg(not(target_os = "macos"))]
@@ -27,31 +28,34 @@ mod tch_gpu {
         #[cfg(target_os = "macos")]
         let device = LibTorchDevice::Mps;
 
-        training::run::<Autodiff<LibTorch>>(device);
+        super::run::<LibTorch>(device);
     }
 }
 
 #[cfg(feature = "wgpu")]
 mod wgpu {
     use burn::backend::wgpu::{Wgpu, WgpuDevice};
-    use burn::backend::Autodiff;
-    use regression::training;
 
     pub fn run() {
         let device = WgpuDevice::default();
-        training::run::<Autodiff<Wgpu>>(device);
+        super::run::<Wgpu>(device);
     }
 }
 
 #[cfg(feature = "tch-cpu")]
 mod tch_cpu {
     use burn::backend::libtorch::{LibTorch, LibTorchDevice};
-    use burn::backend::Autodiff;
-    use regression::training;
+    use simple_regression::training;
     pub fn run() {
         let device = LibTorchDevice::Cpu;
-        training::run::<Autodiff<LibTorch>>(device);
+        super::run::<LibTorch>(device);
     }
+}
+
+/// Train a regression model and predict results on a number of samples.
+pub fn run<B: Backend>(device: B::Device) {
+    training::run::<Autodiff<B>>(ARTIFACT_DIR, device.clone());
+    inference::infer::<B>(ARTIFACT_DIR, device)
 }
 
 fn main() {

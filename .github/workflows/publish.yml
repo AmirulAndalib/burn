@@ -6,109 +6,225 @@ on:
       - "v*"
 
 jobs:
+  publish-burn-vision:
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
+    with:
+      crate: burn-vision
+    needs:
+      - publish-burn-autodiff
+      - publish-burn-candle
+      - publish-burn-fusion
+      - publish-burn-cubecl-fusion
+      - publish-burn-cubecl
+      - publish-burn-ndarray
+      - publish-burn-tch
+      - publish-burn-tensor
+      - publish-burn-ir
+      - publish-burn-tensor-testgen
+      # dev dependencies
+      - publish-burn-wgpu
+      - publish-burn-cuda
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
+
+  publish-burn-router:
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
+    with:
+      crate: burn-router
+    needs:
+      - publish-burn-ir
+      - publish-burn-common
+      - publish-burn-tensor
+      # dev dependencies
+      - publish-burn-autodiff
+      - publish-burn-ndarray
+      - publish-burn-wgpu
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
+
+  publish-burn-remote:
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
+    with:
+      crate: burn-remote
+    needs:
+      - publish-burn-ir
+      - publish-burn-common
+      - publish-burn-tensor
+      - publish-burn-router
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
+
   publish-burn-derive:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     with:
       crate: burn-derive
-    secrets: inherit
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
 
   publish-burn-dataset:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     with:
       crate: burn-dataset
-    secrets: inherit
-
-  publish-burn-common:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
-    with:
-      crate: burn-common
-    secrets: inherit
-
-  publish-burn-compute:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
     needs:
       - publish-burn-common
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
+
+  publish-burn-common:
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     with:
-      crate: burn-compute
-    secrets: inherit
+      crate: burn-common
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
 
   publish-burn-tensor-testgen:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     with:
       crate: burn-tensor-testgen
-    secrets: inherit
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
 
   publish-burn-tensor:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     needs:
       - publish-burn-tensor-testgen
       - publish-burn-common
     with:
       crate: burn-tensor
-    secrets: inherit
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
+
+  publish-burn-ir:
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
+    needs:
+      - publish-burn-tensor
+    with:
+      crate: burn-ir
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
 
   publish-burn-fusion:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     needs:
+      - publish-burn-ir
       - publish-burn-tensor
       - publish-burn-common
     with:
       crate: burn-fusion
-    secrets: inherit
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
+
+  publish-burn-cubecl-fusion:
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
+    needs:
+      - publish-burn-ir
+      - publish-burn-common
+      - publish-burn-fusion
+      - publish-burn-tensor
+    with:
+      crate: burn-cubecl-fusion
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
+
+  publish-burn-cubecl:
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
+    needs:
+      - publish-burn-ir
+      - publish-burn-common
+      - publish-burn-fusion
+      - publish-burn-cubecl-fusion
+      - publish-burn-tensor
+      - publish-burn-ndarray
+    with:
+      crate: burn-cubecl
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
 
   publish-burn-autodiff:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     needs:
       - publish-burn-tensor
       - publish-burn-tensor-testgen
       - publish-burn-common
     with:
       crate: burn-autodiff
-    secrets: inherit
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
 
   publish-burn-tch:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     needs:
       - publish-burn-tensor
       - publish-burn-autodiff
     with:
       crate: burn-tch
-    secrets: inherit
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
 
   publish-burn-ndarray:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     needs:
+      - publish-burn-ir
       - publish-burn-tensor
       - publish-burn-autodiff
       - publish-burn-common
     with:
       crate: burn-ndarray
-    secrets: inherit
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
 
   publish-burn-wgpu:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     needs:
       - publish-burn-tensor
-      - publish-burn-compute
       - publish-burn-autodiff
       - publish-burn-ndarray
       - publish-burn-common
+      - publish-burn-cubecl
     with:
       crate: burn-wgpu
-    secrets: inherit
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
+
+  publish-burn-cuda:
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
+    needs:
+      - publish-burn-tensor
+      - publish-burn-autodiff
+      - publish-burn-ndarray
+      - publish-burn-common
+      - publish-burn-cubecl
+    with:
+      crate: burn-cuda
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
+
+  publish-burn-hip:
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
+    needs:
+      - publish-burn-tensor
+      - publish-burn-autodiff
+      - publish-burn-ndarray
+      - publish-burn-common
+      - publish-burn-cubecl
+    with:
+      crate: burn-hip
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
 
   publish-burn-candle:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     needs:
       - publish-burn-tensor
       - publish-burn-autodiff
       - publish-burn-tch
     with:
       crate: burn-candle
-    secrets: inherit
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
 
   publish-burn-core:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     needs:
       - publish-burn-dataset
       - publish-burn-common
@@ -119,31 +235,43 @@ jobs:
       - publish-burn-tch
       - publish-burn-ndarray
       - publish-burn-candle
+      - publish-burn-remote
     with:
       crate: burn-core
-    secrets: inherit
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
 
   publish-burn-train:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     needs:
       - publish-burn-core
     with:
       crate: burn-train
-    secrets: inherit
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
 
   publish-burn:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     needs:
       - publish-burn-core
       - publish-burn-train
     with:
       crate: burn
-    secrets: inherit
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
 
   publish-burn-import:
-    uses: tracel-ai/burn/.github/workflows/publish-template.yml@main
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
     needs:
       - publish-burn
     with:
       crate: burn-import
-    secrets: inherit
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}
+
+  publish-onnx-ir:
+    uses: tracel-ai/github-actions/.github/workflows/publish-crate.yml@v1
+    with:
+      crate: onnx-ir
+    secrets:
+      CRATES_IO_API_TOKEN: ${{ secrets.CRATES_IO_API_TOKEN }}

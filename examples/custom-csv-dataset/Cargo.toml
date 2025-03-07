@@ -1,5 +1,5 @@
 [package]
-authors = ["guillaumelagrange <lagrange.guillaume.1@gmail.com>"]
+authors = ["laggui <lagrange.guillaume.1@gmail.com>"]
 edition.workspace = true
 license.workspace = true
 name = "custom-csv-dataset"
@@ -11,7 +11,7 @@ version.workspace = true
 default = ["burn/dataset"]
 
 [dependencies]
-burn = {path = "../../burn"}
+burn = {path = "../../crates/burn"}
 
 # File download
 reqwest = {workspace = true, features = ["blocking"]}

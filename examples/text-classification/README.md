@@ -29,7 +29,7 @@ cd burn
 # Use the --release flag to really speed up training.
 # Use the f16 feature if your CUDA device supports FP16 (half precision) operations. May not work well on every device.
 
-export TORCH_CUDA_VERSION=cu117  # Set the cuda version (CUDA users)
+export TORCH_CUDA_VERSION=cu124  # Set the cuda version (CUDA users)
 
 # AG News
 cargo run --example ag-news-train --release --features tch-gpu   # Train on the ag news dataset
@@ -91,4 +91,17 @@ cargo run --example ag-news-infer --release --features wgpu   # Run inference on
 # DbPedia
 cargo run --example db-pedia-train --release --features wgpu  # Train on the db pedia dataset
 cargo run --example db-pedia-infer --release --features wgpu  # Run inference db pedia dataset
+```
+
+## CUDA backend
+
+```bash
+git clone https://github.com/tracel-ai/burn.git
+cd burn
+
+# Use the --release flag to really speed up training.
+
+# AG News
+cargo run --example ag-news-train --release --features cuda   # Train on the ag news dataset
+cargo run --example ag-news-infer --release --features cuda   # Run inference on the ag news dataset
 ```
