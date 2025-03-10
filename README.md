@@ -3,10 +3,11 @@
 
 [![Discord](https://img.shields.io/discord/1038839012602941528.svg?color=7289da&&logo=discord)](https://discord.gg/uPEBbYYDB6)
 [![Current Crates.io Version](https://img.shields.io/crates/v/burn.svg)](https://crates.io/crates/burn)
+[![Minimum Supported Rust Version](https://img.shields.io/crates/msrv/burn)](https://crates.io/crates/burn)
 [![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://burn.dev/docs/burn)
 [![Test Status](https://github.com/tracel-ai/burn/actions/workflows/test.yml/badge.svg)](https://github.com/tracel-ai/burn/actions/workflows/test.yml)
 [![CodeCov](https://codecov.io/gh/tracel-ai/burn/branch/main/graph/badge.svg)](https://codecov.io/gh/tracel-ai/burn)
-[![Rust Version](https://img.shields.io/badge/Rust-1.71.0+-blue)](https://releases.rs/docs/1.71.0)
+[![Blaze](https://runblaze.dev/gh/114041730602611213183421653564341667516/badge.svg)](https://runblaze.dev)
 ![license](https://shields.io/badge/license-MIT%2FApache--2.0-blue)
 
 ---
@@ -60,9 +61,9 @@ lines of WGSL [WebGPU Shading Language]("https://www.w3.org/TR/WGSL/https://www.
 an extremely verbose lower level shader language you probably don't want to program your deep
 learning models in!
 
-> As of now, our fusion strategy is only implemented for our own WGPU backend and supports only a
-> subset of operations. We plan to add more operations very soon and extend this technique to other
-> future in-house backends.
+> As of now, our fusion strategy is only implemented for our own WGPU and CUDA backends and supports
+> only a subset of operations. We plan to add more operations very soon and extend this technique to
+> other future in-house backends.
 
 </details>
 
@@ -154,14 +155,15 @@ Hardware specific features 🔥
 </summary>
 <br />
 
-It is no secret that deep learning is mosly relying on matrix multiplication as its core operation,
+It is no secret that deep learning is mostly relying on matrix multiplication as its core operation,
 since this is how fully-connected neural networks are modeled.
 
-More and more, hardware manufacturers optimize their chips specifically for matrix mutiliplication
+More and more, hardware manufacturers optimize their chips specifically for matrix multiplication
 workloads. For instance, Nvidia has its _Tensor Cores_ and today most cellphones have AI specialized
-chips. As of this moment, we support Tensor Cores with our LibTorch and Candle backends, but not
-other accelerators yet. We hope [this issue](https://github.com/gpuweb/gpuweb/issues/4195) gets
-resolved at some point to bring support to our WGPU backend.
+chips. As of this moment, we support Tensor Cores with our LibTorch, Candle, CUDA and WGPU/SPIR-V
+backends, but not other accelerators yet. We hope
+[this issue](https://github.com/gpuweb/gpuweb/issues/4195) gets resolved at some point to bring
+support to our WGPU backend.
 
 </details>
 
@@ -177,8 +179,8 @@ functionalities of a backend implementation to suit your personal modeling requi
 
 This versatility is advantageous in numerous ways, such as supporting custom operations like flash
 attention or manually writing your own kernel for a specific backend to enhance performance. See
-[this section](https://burn.dev/book/advanced/backend-extension/index.html) in the Burn Book 🔥 for
-more details.
+[this section](https://burn.dev/burn-book/advanced/backend-extension/index.html) in the Burn Book 🔥
+for more details.
 
 </details>
 
@@ -243,10 +245,10 @@ you have written in another framework like TensorFlow or PyTorch to Burn to bene
 advantages our framework offers.
 
 Our ONNX support is further described in
-[this section of the Burn Book 🔥](https://burn.dev/book/import/onnx-model.html).
+[this section of the Burn Book 🔥](https://burn.dev/burn-book/import/onnx-model.html).
 
 > **Note**: This crate is in active development and currently supports a
-> [limited set of ONNX operators](./burn-import/SUPPORTED-ONNX-OPS.md).
+> [limited set of ONNX operators](./crates/burn-import/SUPPORTED-ONNX-OPS.md).
 
 </details>
 
@@ -258,7 +260,7 @@ Importing PyTorch Models 🚚
 
 Support for loading of PyTorch model weights into Burn’s native model architecture, ensuring
 seamless integration. See
-[Burn Book 🔥 section on importing PyTorch](https://burn.dev/book/import/pytorch-model.html)
+[Burn Book 🔥 section on importing PyTorch](https://burn.dev/burn-book/import/pytorch-model.html)
 
 </details>
 
@@ -299,7 +301,8 @@ means it can run in bare metal environment such as embedded devices without an o
 <div align="left">
 <img align="right" src="https://raw.githubusercontent.com/tracel-ai/burn/main/assets/backend-chip.png" height="96px"/>
 Burn strives to be as fast as possible on as many hardwares as possible, with robust implementations.
-We believe this flexibility is crucial for modern needs where you may train your models in the cloud, then deploy on customer hardwares, which vary from user to user.
+We believe this flexibility is crucial for modern needs where you may train your models in the cloud,
+then deploy on customer hardwares, which vary from user to user.
 </div>
 
 <br />
@@ -321,17 +324,20 @@ WGPU (WebGPU): Cross-Platform GPU Backend 🌐
 
 Based on the most popular and well-supported Rust graphics library, [WGPU](https://wgpu.rs), this
 backend automatically targets Vulkan, OpenGL, Metal, Direct X11/12, and WebGPU, by using the WebGPU
-shading language [WGSL](https://www.w3.org/TR/WGSL/https://www.w3.org/TR/WGSL/). It can also be
-compiled to Web Assembly to run in the browser while leveraging the GPU, see
+shading language [WGSL](https://www.w3.org/TR/WGSL/), or optionally
+[SPIR-V](https://www.khronos.org/spir/) when targeting Vulkan. It can also be compiled to Web
+Assembly to run in the browser while leveraging the GPU, see
 [this demo](https://antimora.github.io/image-classification/). For more information on the benefits
 of this backend, see [this blog](https://burn.dev/blog/cross-platform-gpu-backend).
 
 The WGPU backend is our first "in-house backend", which means we have complete control over its
 implementation details. It is fully optimized with the
 [performance characteristics mentioned earlier](#performance), as it serves as our research
-playground for a variety of optimizations.
+playground for a variety of optimizations. We've since added CUDA, ROCm and SPIR-V support using the
+same compiler infrastructure, so a kernel written for burn once, can run anywhere.
 
-See the [WGPU Backend README](./burn-wgpu/README.md) for more details.
+See the [WGPU Backend README](./crates/burn-wgpu/README.md) and
+[CUDA Backend README](./crates/burn-cuda/README.md) for more details.
 
 </details>
 
@@ -345,7 +351,7 @@ Based on [Candle by Hugging Face](https://github.com/huggingface/candle), a mini
 for Rust with a focus on performance and ease of use, this backend can run on CPU with support for
 Web Assembly or on Nvidia GPUs using CUDA.
 
-See the [Candle Backend README](./burn-candle/README.md) for more details.
+See the [Candle Backend README](./crates/burn-candle/README.md) for more details.
 
 > _Disclaimer:_ This backend is not fully completed yet, but can work in some contexts like
 > inference.
@@ -362,7 +368,7 @@ PyTorch doesn't need an introduction in the realm of deep learning. This backend
 [PyTorch Rust bindings](https://github.com/LaurentMazare/tch-rs), enabling you to use LibTorch C++
 kernels on CPU, CUDA and Metal.
 
-See the [LibTorch Backend README](./burn-tch/README.md) for more details.
+See the [LibTorch Backend README](./crates/burn-tch/README.md) for more details.
 
 </details>
 
@@ -376,7 +382,7 @@ This CPU backend is admittedly not our fastest backend, but offers extreme porta
 
 It is our only backend supporting _no_std_.
 
-See the [NdArray Backend README](./burn-ndarray/README.md) for more details.
+See the [NdArray Backend README](./crates/burn-ndarray/README.md) for more details.
 
 </details>
 
@@ -416,7 +422,7 @@ Of note, it is impossible to make the mistake of calling backward on a model tha
 that does not support autodiff (for inference), as this method is only offered by an Autodiff
 backend.
 
-See the [Autodiff Backend README](./burn-autodiff/README.md) for more details.
+See the [Autodiff Backend README](./crates/burn-autodiff/README.md) for more details.
 
 </details>
 
@@ -428,7 +434,7 @@ Fusion: Backend decorator that brings kernel fusion to backends that support it 
 
 This backend decorator enhances a backend with kernel fusion, provided that the inner backend
 supports it. Note that you can compose this backend with other backend decorators such as Autodiff.
-For now, only the WGPU backend has support for fused kernels.
+For now, only the WGPU and CUDA backends have support for fused kernels.
 
 ```rust
 use burn::backend::{Autodiff, Fusion, Wgpu};
@@ -455,7 +461,7 @@ Of note, we plan to implement automatic gradient checkpointing based on compute 
 bound operations, which will work gracefully with the fusion backend to make your code run even
 faster during training, see [this issue](https://github.com/tracel-ai/burn/issues/936).
 
-See the [Fusion Backend README](./burn-fusion/README.md) for more details.
+See the [Fusion Backend README](./crates/burn-fusion/README.md) for more details.
 
 </details>
 
@@ -479,9 +485,9 @@ The Burn Book 🔥
 
 To begin working effectively with Burn, it is crucial to understand its key components and
 philosophy. This is why we highly recommend new users to read the first sections of
-[The Burn Book 🔥](https://burn.dev/book/). It provides detailed examples and explanations covering
-every facet of the framework, including building blocks like tensors, modules, and optimizers, all
-the way to advanced usage, like coding your own GPU kernels.
+[The Burn Book 🔥](https://burn.dev/burn-book/). It provides detailed examples and explanations
+covering every facet of the framework, including building blocks like tensors, modules, and
+optimizers, all the way to advanced usage, like coding your own GPU kernels.
 
 > The project is constantly evolving, and we try as much as possible to keep the book up to date
 > with new additions. However, we might miss some details sometimes, so if you see something weird,
@@ -508,7 +514,7 @@ pub struct PositionWiseFeedForward<B: Backend> {
     linear_inner: nn::Linear<B>,
     linear_outer: nn::Linear<B>,
     dropout: nn::Dropout,
-    gelu: nn::GELU,
+    gelu: nn::Gelu,
 }
 
 impl<B: Backend> PositionWiseFeedForward<B> {
@@ -523,8 +529,49 @@ impl<B: Backend> PositionWiseFeedForward<B> {
 ```
 
 We have a somewhat large amount of [examples](./examples) in the repository that shows how to use
-the framework in different scenarios. For more practical insights, you can clone the repository and
-run any of them directly on your computer!
+the framework in different scenarios.
+
+Following [the book](https://burn.dev/burn-book/):
+
+- [Basic Workflow](./examples/guide) : Creates a custom CNN `Module` to train on the MNIST dataset
+  and use for inference.
+- [Custom Training Loop](./examples/custom-training-loop) : Implements a basic training loop instead
+  of using the `Learner`.
+- [Custom WGPU Kernel](./examples/custom-wgpu-kernel) : Learn how to create your own custom
+  operation with the WGPU backend.
+
+Additional examples:
+
+- [Custom CSV Dataset](./examples/custom-csv-dataset) : Implements a dataset to parse CSV data for a
+  regression task.
+- [Regression](./examples/simple-regression) : Trains a simple MLP on the California Housing dataset
+  to predict the median house value for a district.
+- [Custom Image Dataset](./examples/custom-image-dataset) : Trains a simple CNN on custom image
+  dataset following a simple folder structure.
+- [Custom Renderer](./examples/custom-renderer) : Implements a custom renderer to display the
+  [`Learner`](./building-blocks/learner.md) progress.
+- [Image Classification Web](./examples/image-classification-web) : Image classification web browser
+  demo using Burn, WGPU and WebAssembly.
+- [MNIST Inference on Web](./examples/mnist-inference-web) : An interactive MNIST inference demo in
+  the browser. The demo is available [online](https://burn.dev/demo/).
+- [MNIST Training](./examples/mnist) : Demonstrates how to train a custom `Module` (MLP) with the
+  `Learner` configured to log metrics and keep training checkpoints.
+- [Named Tensor](./examples/named-tensor) : Performs operations with the experimental `NamedTensor`
+  feature.
+- [ONNX Import Inference](./examples/onnx-inference) : Imports an ONNX model pre-trained on MNIST to
+  perform inference on a sample image with Burn.
+- [PyTorch Import Inference](./examples/pytorch-import) : Imports a PyTorch model pre-trained on
+  MNIST to perform inference on a sample image with Burn.
+- [Text Classification](./examples/text-classification) : Trains a text classification transformer
+  model on the AG News or DbPedia dataset. The trained model can then be used to classify a text
+  sample.
+- [Text Generation](./examples/text-generation) : Trains a text generation transformer model on the
+  DbPedia dataset.
+- [Wasserstein GAN MNIST](./examples/wgan) : Trains a WGAN model to generate new handwritten digits
+  based on MNIST.
+
+For more practical insights, you can clone the repository and run any of them directly on your
+computer!
 
 </details>
 
@@ -573,6 +620,51 @@ leads to more reliable, bug-free solutions built faster (after some practice �
 
 <br />
 
+> **Deprecation Note**<br />Since `0.14.0`, the internal structure for tensor data has changed. The
+> previous `Data` struct was deprecated and officially removed since `0.17.0` in favor of the new
+> `TensorData` struct, which allows for more flexibility by storing the underlying data as bytes and
+> keeping the data type as a field. If you are using `Data` in your code, make sure to switch to
+> `TensorData`.
+
+<!-- >
+> In the event that you are trying to load a model record saved in a previous version, make sure to
+> enable the `record-backward-compat` feature using a previous version of burn (<=0.16.0). Otherwise,
+> the record won't be deserialized correctly and you will get an error message (which will also point
+> you to the backward compatible feature flag). The backward compatibility was maintained for
+> deserialization (loading), so as soon as you have saved the record again it will be saved according
+> to the new structure and you will be able to upgrade to this version. Please note that binary formats
+> are not backward compatible. Thus, you will need to load your record in a previous version and save it
+> to another of the self-describing record formats before using a compatible version (as described) with the
+> `record-backward-compat` feature flag. -->
+
+<details id="deprecation">
+<summary>
+Loading Model Records From Previous Versions ⚠️
+</summary>
+<br />
+
+In the event that you are trying to load a model record saved in a version older than `0.14.0`, make
+sure to use a compatible version (`0.14`, `0.15` or `0.16`) with the `record-backward-compat`
+feature flag.
+
+```
+features = [..., "record-backward-compat"]
+```
+
+Otherwise, the record won't be deserialized correctly and you will get an error message. This error
+will also point you to the backward compatible feature flag.
+
+The backward compatibility was maintained for deserialization when loading records. Therefore, as
+soon as you have saved the record again it will be saved according to the new structure and you can
+upgrade back to the current version
+
+Please note that binary formats are not backward compatible. Thus, you will need to load your record
+in a previous version and save it in any of the other self-describing record format (e.g., using the
+`NamedMpkFileRecorder`) before using a compatible version (as described) with the
+`record-backward-compat` feature flag.
+
+</details>
+
 ## Community
 
 <div align="left">
@@ -590,10 +682,10 @@ any background. You can ask your questions and share what you built with the com
 
 Before contributing, please take a moment to review our
 [code of conduct](https://github.com/tracel-ai/burn/tree/main/CODE-OF-CONDUCT.md). It's also highly
-recommended to read our
-[architecture document](https://github.com/tracel-ai/burn/tree/main/ARCHITECTURE.md), which explains
-some of our architectural decisions. Refer to out [contributing guide](/CONTRIBUTING.md) for more
-details.
+recommended to read the
+[architecture overview](https://github.com/tracel-ai/burn/tree/main/contributor-book/src/project-architecture),
+which explains some of our architectural decisions. Refer to our
+[contributing guide](/CONTRIBUTING.md) for more details.
 
 ## Status
 

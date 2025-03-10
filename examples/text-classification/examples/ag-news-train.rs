@@ -1,9 +1,12 @@
-use burn::nn::transformer::TransformerEncoderConfig;
-use burn::optim::{decay::WeightDecayConfig, AdamConfig};
-use burn::tensor::backend::AutodiffBackend;
+#![recursion_limit = "256"]
 
-use text_classification::training::ExperimentConfig;
-use text_classification::AgNewsDataset;
+use burn::{
+    nn::transformer::TransformerEncoderConfig,
+    optim::{decay::WeightDecayConfig, AdamConfig},
+    tensor::backend::AutodiffBackend,
+};
+
+use text_classification::{training::ExperimentConfig, AgNewsDataset};
 
 #[cfg(not(feature = "f16"))]
 #[allow(dead_code)]
@@ -35,8 +38,10 @@ pub fn launch<B: AutodiffBackend>(devices: Vec<B::Device>) {
     feature = "ndarray-blas-accelerate",
 ))]
 mod ndarray {
-    use burn::backend::ndarray::{NdArray, NdArrayDevice};
-    use burn::backend::Autodiff;
+    use burn::backend::{
+        ndarray::{NdArray, NdArrayDevice},
+        Autodiff,
+    };
 
     use crate::{launch, ElemType};
 
@@ -47,8 +52,10 @@ mod ndarray {
 
 #[cfg(feature = "tch-gpu")]
 mod tch_gpu {
-    use burn::backend::libtorch::{LibTorch, LibTorchDevice};
-    use burn::backend::Autodiff;
+    use burn::backend::{
+        libtorch::{LibTorch, LibTorchDevice},
+        Autodiff,
+    };
 
     use crate::{launch, ElemType};
 
@@ -64,8 +71,10 @@ mod tch_gpu {
 
 #[cfg(feature = "tch-cpu")]
 mod tch_cpu {
-    use burn::backend::libtorch::{LibTorch, LibTorchDevice};
-    use burn::backend::Autodiff;
+    use burn::backend::{
+        libtorch::{LibTorch, LibTorchDevice},
+        Autodiff,
+    };
 
     use crate::{launch, ElemType};
 
@@ -77,13 +86,50 @@ mod tch_cpu {
 #[cfg(feature = "wgpu")]
 mod wgpu {
     use crate::{launch, ElemType};
-    use burn::backend::wgpu::{AutoGraphicsApi, Wgpu, WgpuDevice};
-    use burn::backend::{Autodiff, Fusion};
+    use burn::backend::{wgpu::Wgpu, Autodiff};
 
     pub fn run() {
-        launch::<Autodiff<Fusion<Wgpu<AutoGraphicsApi, ElemType, i32>>>>(vec![
-            WgpuDevice::default(),
-        ]);
+        launch::<Autodiff<Wgpu<ElemType, i32>>>(vec![Default::default()]);
+    }
+}
+
+#[cfg(feature = "vulkan")]
+mod vulkan {
+    use crate::{launch, ElemType};
+    use burn::backend::{Autodiff, Vulkan};
+
+    pub fn run() {
+        launch::<Autodiff<Vulkan<ElemType, i32>>>(vec![Default::default()]);
+    }
+}
+
+#[cfg(feature = "remote")]
+mod remote {
+    use crate::{launch, ElemType};
+    use burn::backend::{Autodiff, RemoteBackend};
+
+    pub fn run() {
+        launch::<Autodiff<RemoteBackend>>(vec![Default::default()]);
+    }
+}
+
+#[cfg(feature = "cuda")]
+mod cuda {
+    use crate::{launch, ElemType};
+    use burn::backend::{Autodiff, Cuda};
+
+    pub fn run() {
+        launch::<Autodiff<Cuda<ElemType, i32>>>(vec![Default::default()]);
+    }
+}
+
+#[cfg(feature = "hip")]
+mod hip {
+    use crate::{launch, ElemType};
+    use burn::backend::{Autodiff, Hip};
+
+    pub fn run() {
+        launch::<Autodiff<Hip<ElemType, i32>>>(vec![Default::default()]);
     }
 }
 
@@ -101,4 +147,12 @@ fn main() {
     tch_cpu::run();
     #[cfg(feature = "wgpu")]
     wgpu::run();
+    #[cfg(feature = "cuda")]
+    cuda::run();
+    #[cfg(feature = "hip")]
+    hip::run();
+    #[cfg(feature = "remote")]
+    remote::run();
+    #[cfg(feature = "vulkan")]
+    vulkan::run();
 }

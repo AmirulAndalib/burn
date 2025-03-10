@@ -5,7 +5,6 @@ derive function only generates the necessary methods to essentially act as a par
 your type, it makes no assumptions about how the forward pass is declared.
 
 ```rust, ignore
-use burn::nn;
 use burn::module::Module;
 use burn::tensor::backend::Backend;
 
@@ -14,7 +13,7 @@ pub struct PositionWiseFeedForward<B: Backend> {
     linear_inner: Linear<B>,
     linear_outer: Linear<B>,
     dropout: Dropout,
-    gelu: GELU,
+    gelu: Gelu,
 }
 
 impl<B: Backend> PositionWiseFeedForward<B> {
@@ -90,14 +89,135 @@ You can implement your own mapper or visitor by implementing these simple traits
 ```rust, ignore
 /// Module visitor trait.
 pub trait ModuleVisitor<B: Backend> {
-    /// Visit a tensor in the module.
-    fn visit<const D: usize>(&mut self, id: &ParamId, tensor: &Tensor<B, D>);
+    /// Visit a float tensor in the module.
+    fn visit_float<const D: usize>(&mut self, id: ParamId, tensor: &Tensor<B, D>);
+    /// Visit an int tensor in the module.
+    fn visit_int<const D: usize>(&mut self, id: ParamId, tensor: &Tensor<B, D, Int>);
+    /// Visit a bool tensor in the module.
+    fn visit_bool<const D: usize>(&mut self, id: ParamId, tensor: &Tensor<B, D, Bool>);
 }
 
 /// Module mapper trait.
 pub trait ModuleMapper<B: Backend> {
-    /// Map a tensor in the module.
-    fn map<const D: usize>(&mut self, id: &ParamId, tensor: Tensor<B, D>) -> Tensor<B, D>;
+    /// Map a float tensor in the module.
+    fn map_float<const D: usize>(&mut self, id: ParamId, tensor: Tensor<B, D>) -> Tensor<B, D>;
+    /// Map an int tensor in the module.
+    fn map_int<const D: usize>(&mut self, id: ParamId, tensor: Tensor<B, D, Int>) -> Tensor<B, D, Int>;
+    /// Map a bool tensor in the module.
+    fn map_bool<const D: usize>(&mut self, id: ParamId, tensor: Tensor<B, D, Bool>) -> Tensor<B, D, Bool>;
+}
+```
+
+Note that the trait doesn't require all methods to be implemented as they are already defined to
+perform no operation. If you're only interested in float tensors (like the majority of use cases),
+then you can simply implement `map_float` or `visit_float`.
+
+For example, the `ModuleMapper` trait could be implemented to clamp all parameters into the range
+`[min, max]`.
+
+```rust, ignore
+/// Clamp parameters into the range `[min, max]`.
+pub struct Clamp {
+    /// Lower-bound of the range.
+    pub min: f32,
+    /// Upper-bound of the range.
+    pub max: f32,
+}
+
+// Clamp all floating-point parameter tensors between `[min, max]`.
+impl<B: Backend> ModuleMapper<B> for Clamp {
+    fn map_float<const D: usize>(
+        &mut self,
+        _id: burn::module::ParamId,
+        tensor: burn::prelude::Tensor<B, D>,
+    ) -> burn::prelude::Tensor<B, D> {
+        tensor.clamp(self.min, self.max)
+    }
+}
+
+// Clamp module mapper into the range `[-0.5, 0.5]`
+let mut clamp = Clamp {
+    min: -0.5,
+    max: 0.5,
+};
+let model = model.map(&mut clamp);
+```
+
+If you want to use this during training to constrain your model parameters, make sure that the
+parameter tensors are still tracked for autodiff. This can be done with a simple adjustment to the
+implementation.
+
+```rust, ignore
+impl<B: AutodiffBackend> ModuleMapper<B> for Clamp {
+    fn map_float<const D: usize>(
+        &mut self,
+        _id: burn::module::ParamId,
+        tensor: burn::prelude::Tensor<B, D>,
+    ) -> burn::prelude::Tensor<B, D> {
+        let is_require_grad = tensor.is_require_grad();
+
+        let mut tensor = Tensor::from_inner(tensor.inner().clamp(self.min, self.max));
+
+        if is_require_grad {
+            tensor = tensor.require_grad();
+        }
+
+        tensor
+    }
+}
+```
+
+## Module Display
+
+Burn provides a simple way to display the structure of a module and its configuration at a glance.
+You can print the module to see its structure, which is useful for debugging and tracking changes
+across different versions of a module. (See the print output of the
+[Basic Workflow Model](../basic-workflow/model.md) example.)
+
+To customize the display of a module, you can implement the `ModuleDisplay` trait for your module.
+This will change the default display settings for the module and its children. Note that
+`ModuleDisplay` is automatically implemented for all modules, but you can override it to customize
+the display by annotating the module with `#[module(custom_display)]`.
+
+```rust
+#[derive(Module, Debug)]
+#[module(custom_display)]
+pub struct PositionWiseFeedForward<B: Backend> {
+    linear_inner: Linear<B>,
+    linear_outer: Linear<B>,
+    dropout: Dropout,
+    gelu: Gelu,
+}
+
+impl<B: Backend> ModuleDisplay for PositionWiseFeedForward<B> {
+    /// Custom settings for the display of the module.
+    /// If `None` is returned, the default settings will be used.
+    fn custom_settings(&self) -> Option<burn::module::DisplaySettings> {
+        DisplaySettings::new()
+            // Will show all attributes (default is false)
+            .with_show_all_attributes(false)
+            // Will show each attribute on a new line (default is true)
+            .with_new_line_after_attribute(true)
+            // Will show the number of parameters (default is true)
+            .with_show_num_parameters(true)
+            // Will indent by 2 spaces (default is 2)
+            .with_indentation_size(2)
+            // Will show the parameter ID (default is false)
+            .with_show_param_id(false)
+            // Convenience method to wrap settings in Some()
+            .optional()
+    }
+
+    /// Custom content to be displayed.
+    /// If `None` is returned, the default content will be used
+    /// (all attributes of the module)
+    fn custom_content(&self, content: Content) -> Option<Content> {
+        content
+            .add("linear_inner", &self.linear_inner)
+            .add("linear_outer", &self.linear_outer)
+            .add("anything", "anything_else")
+            .optional()
+    }
 }
 ```
 
@@ -107,25 +227,36 @@ Burn comes with built-in modules that you can use to build your own modules.
 
 ### General
 
-| Burn API    | PyTorch Equivalent                      |
-| ----------- | --------------------------------------- |
-| `BatchNorm` | `nn.BatchNorm1d`, `nn.BatchNorm2d` etc. |
-| `LayerNorm` | `nn.LayerNorm`                          |
-| `GroupNorm` | `nn.GroupNorm`                          |
-| `Dropout`   | `nn.Dropout`                            |
-| `GELU`      | `nn.GELU`                               |
-| `Linear`    | `nn.Linear`                             |
-| `Embedding` | `nn.Embedding`                          |
-| `Relu`      | `nn.ReLU`                               |
+| Burn API        | PyTorch Equivalent                            |
+| --------------- | --------------------------------------------- |
+| `BatchNorm`     | `nn.BatchNorm1d`, `nn.BatchNorm2d` etc.       |
+| `Dropout`       | `nn.Dropout`                                  |
+| `Embedding`     | `nn.Embedding`                                |
+| `Gelu`          | `nn.Gelu`                                     |
+| `GroupNorm`     | `nn.GroupNorm`                                |
+| `HardSigmoid`   | `nn.Hardsigmoid`                              |
+| `InstanceNorm`  | `nn.InstanceNorm1d`, `nn.InstanceNorm2d` etc. |
+| `LayerNorm`     | `nn.LayerNorm`                                |
+| `LeakyRelu`     | `nn.LeakyReLU`                                |
+| `Linear`        | `nn.Linear`                                   |
+| `Prelu`         | `nn.PReLu`                                    |
+| `Relu`          | `nn.ReLU`                                     |
+| `RmsNorm`       | _No direct equivalent_                        |
+| `SwiGlu`        | _No direct equivalent_                        |
+| `Interpolate1d` | _No direct equivalent_                        |
+| `Interpolate2d` | _No direct equivalent_                        |
 
 ### Convolutions
 
-| Burn API          | PyTorch Equivalent   |
-| ----------------- | -------------------- |
-| `Conv1d`          | `nn.Conv1d`          |
-| `Conv2d`          | `nn.Conv2d`          |
-| `ConvTranspose1d` | `nn.ConvTranspose1d` |
-| `ConvTranspose2d` | `nn.ConvTranspose2d` |
+| Burn API          | PyTorch Equivalent             |
+| ----------------- | ------------------------------ |
+| `Conv1d`          | `nn.Conv1d`                    |
+| `Conv2d`          | `nn.Conv2d`                    |
+| `Conv3d`          | `nn.Conv3d`                    |
+| `ConvTranspose1d` | `nn.ConvTranspose1d`           |
+| `ConvTranspose2d` | `nn.ConvTranspose2d`           |
+| `ConvTranspose3d` | `nn.ConvTranspose3d`           |
+| `DeformConv2d`    | `torchvision.ops.DeformConv2d` |
 
 ### Pooling
 
@@ -143,7 +274,7 @@ Burn comes with built-in modules that you can use to build your own modules.
 | Burn API         | PyTorch Equivalent     |
 | ---------------- | ---------------------- |
 | `Gru`            | `nn.GRU`               |
-| `Lstm`           | `nn.LSTM`              |
+| `Lstm`/`BiLstm`  | `nn.LSTM`              |
 | `GateController` | _No direct equivalent_ |
 
 ### Transformer
@@ -154,10 +285,13 @@ Burn comes with built-in modules that you can use to build your own modules.
 | `TransformerDecoder` | `nn.TransformerDecoder` |
 | `TransformerEncoder` | `nn.TransformerEncoder` |
 | `PositionalEncoding` | _No direct equivalent_  |
+| `RotaryEncoding`     | _No direct equivalent_  |
 
 ### Loss
 
 | Burn API           | PyTorch Equivalent    |
 | ------------------ | --------------------- |
 | `CrossEntropyLoss` | `nn.CrossEntropyLoss` |
-| `MSELoss`          | `nn.MSELoss`          |
+| `MseLoss`          | `nn.MSELoss`          |
+| `HuberLoss`        | `nn.HuberLoss`        |
+| `PoissonNllLoss`   | `nn.PoissonNLLLoss`   |

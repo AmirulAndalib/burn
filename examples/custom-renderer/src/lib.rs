@@ -1,11 +1,14 @@
-use burn::data::dataset::vision::MNISTDataset;
-use burn::train::renderer::{MetricState, MetricsRenderer, TrainingProgress};
-use burn::train::LearnerBuilder;
 use burn::{
-    config::Config, data::dataloader::DataLoaderBuilder, optim::AdamConfig,
+    config::Config,
+    data::{dataloader::DataLoaderBuilder, dataset::vision::MnistDataset},
+    optim::AdamConfig,
     tensor::backend::AutodiffBackend,
+    train::{
+        renderer::{MetricState, MetricsRenderer, TrainingProgress},
+        LearnerBuilder,
+    },
 };
-use guide::{data::MNISTBatcher, model::ModelConfig};
+use guide::{data::MnistBatcher, model::ModelConfig};
 
 #[derive(Config)]
 pub struct MnistTrainingConfig {
@@ -52,28 +55,28 @@ pub fn run<B: AutodiffBackend>(device: B::Device) {
     let optim = config.optimizer.init();
 
     // Create the batcher.
-    let batcher_train = MNISTBatcher::<B>::new(device.clone());
-    let batcher_valid = MNISTBatcher::<B::InnerBackend>::new(device.clone());
+    let batcher_train = MnistBatcher::<B>::new(device.clone());
+    let batcher_valid = MnistBatcher::<B::InnerBackend>::new(device.clone());
 
     // Create the dataloaders.
     let dataloader_train = DataLoaderBuilder::new(batcher_train)
         .batch_size(config.batch_size)
         .shuffle(config.seed)
         .num_workers(config.num_workers)
-        .build(MNISTDataset::train());
+        .build(MnistDataset::train());
 
     let dataloader_test = DataLoaderBuilder::new(batcher_valid)
         .batch_size(config.batch_size)
         .shuffle(config.seed)
         .num_workers(config.num_workers)
-        .build(MNISTDataset::test());
+        .build(MnistDataset::test());
 
     // artifact dir does not need to be provided when log_to_file is false
     let builder = LearnerBuilder::new("")
         .devices(vec![device])
         .num_epochs(config.num_epochs)
         .renderer(CustomRenderer {})
-        .log_to_file(false);
+        .with_application_logger(None);
     // can be used to interrupt training
     let _interrupter = builder.interrupter();
 

@@ -5,7 +5,7 @@ use derive_new::new;
 
 #[derive(new)]
 struct UnaryBenchmark<B: Backend, const D: usize> {
-    shape: Shape<D>,
+    shape: Shape,
     device: B::Device,
 }
 
@@ -17,12 +17,12 @@ impl<B: Backend, const D: usize> Benchmark for UnaryBenchmark<B, D> {
     }
 
     fn shapes(&self) -> Vec<Vec<usize>> {
-        vec![self.shape.dims.into()]
+        vec![self.shape.dims.clone()]
     }
 
     fn execute(&self, args: Self::Args) {
         // Choice of tanh is arbitrary
-        B::float_tanh(args.clone().into_primitive());
+        B::float_tanh(args.clone().into_primitive().tensor());
     }
 
     fn prepare(&self) -> Self::Args {
@@ -35,13 +35,25 @@ impl<B: Backend, const D: usize> Benchmark for UnaryBenchmark<B, D> {
 }
 
 #[allow(dead_code)]
-fn bench<B: Backend>(device: &B::Device) {
+fn bench<B: Backend>(
+    device: &B::Device,
+    feature_name: &str,
+    url: Option<&str>,
+    token: Option<&str>,
+) {
     const D: usize = 3;
-    let shape: Shape<D> = [32, 512, 1024].into();
+    let shape: Shape = [32, 512, 1024].into();
 
     let benchmark = UnaryBenchmark::<B, D>::new(shape, device.clone());
 
-    save::<B>(vec![run_benchmark(benchmark)], device).unwrap();
+    save::<B>(
+        vec![run_benchmark(benchmark)],
+        device,
+        feature_name,
+        url,
+        token,
+    )
+    .unwrap();
 }
 
 fn main() {

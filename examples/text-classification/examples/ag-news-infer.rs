@@ -74,11 +74,20 @@ mod tch_cpu {
 #[cfg(feature = "wgpu")]
 mod wgpu {
     use crate::{launch, ElemType};
-    use burn::backend::wgpu::{AutoGraphicsApi, Wgpu, WgpuDevice};
-    use burn::backend::Fusion;
+    use burn::backend::wgpu::{Wgpu, WgpuDevice};
 
     pub fn run() {
-        launch::<Fusion<Wgpu<AutoGraphicsApi, ElemType, i32>>>(WgpuDevice::default());
+        launch::<Wgpu<ElemType, i32>>(WgpuDevice::default());
+    }
+}
+
+#[cfg(feature = "cuda")]
+mod cuda {
+    use crate::{launch, ElemType};
+    use burn::backend::{cuda::CudaDevice, Cuda};
+
+    pub fn run() {
+        launch::<Cuda<ElemType, i32>>(CudaDevice::default());
     }
 }
 
@@ -96,4 +105,6 @@ fn main() {
     tch_cpu::run();
     #[cfg(feature = "wgpu")]
     wgpu::run();
+    #[cfg(feature = "cuda")]
+    cuda::run();
 }

@@ -1,12 +1,13 @@
 use std::env::args;
 use std::path::Path;
 
-use burn::backend::ndarray::NdArray;
-use burn::record::{FullPrecisionSettings, NamedMpkFileRecorder, Recorder};
-use burn::tensor::Tensor;
-
-use burn::data::dataset::vision::MNISTDataset;
-use burn::data::dataset::Dataset;
+use burn::{
+    backend::ndarray::NdArray,
+    data::dataset::{vision::MnistDataset, Dataset},
+    module::Module,
+    record::{FullPrecisionSettings, NamedMpkFileRecorder, Recorder},
+    tensor::Tensor,
+};
 
 use model::Model;
 
@@ -39,16 +40,16 @@ fn main() {
         .expect("Failed to decode state");
 
     // Create a new model and load the state
-    let model: Model<Backend> = Model::new_with(record);
+    let model: Model<Backend> = Model::init(&device).load_record(record);
 
     // Load the MNIST dataset and get an item
-    let dataset = MNISTDataset::test();
+    let dataset = MnistDataset::test();
     let item = dataset.get(image_index).unwrap();
 
     // Create a tensor from the image data
     let image_data = item.image.iter().copied().flatten().collect::<Vec<f32>>();
-    let mut input: Tensor<Backend, 4> =
-        Tensor::from_floats(image_data.as_slice(), &device).reshape([1, 1, 28, 28]);
+    let mut input =
+        Tensor::<Backend, 1>::from_floats(image_data.as_slice(), &device).reshape([1, 1, 28, 28]);
 
     // Normalize the input
     input = ((input / 255) - 0.1307) / 0.3081;
@@ -65,10 +66,6 @@ fn main() {
     println!("Success!");
     println!("Predicted: {}", arg_max);
     println!("Actual: {}", item.label);
-
-    // Print the image URL if the image index is less than 100 (the online dataset only has 100 images)
-    if image_index < 100 {
-        println!("See the image online, click the link below:");
-        println!("https://datasets-server.huggingface.co/assets/mnist/--/mnist/test/{image_index}/image/image.jpg");
-    }
+    println!("See the image online, click the link below:");
+    println!("https://huggingface.co/datasets/ylecun/mnist/viewer/mnist/test?row={image_index}");
 }

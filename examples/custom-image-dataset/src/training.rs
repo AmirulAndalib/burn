@@ -3,30 +3,25 @@ use std::time::Instant;
 use crate::{
     data::{ClassificationBatch, ClassificationBatcher},
     dataset::CIFAR10Loader,
-    model::CNN,
-};
-use burn::data::{dataloader::DataLoaderBuilder, dataset::vision::ImageFolderDataset};
-use burn::train::{
-    metric::{AccuracyMetric, LossMetric},
-    ClassificationOutput, LearnerBuilder, TrainOutput, TrainStep, ValidStep,
+    model::Cnn,
 };
 use burn::{
-    self,
-    config::Config,
-    module::Module,
+    data::{dataloader::DataLoaderBuilder, dataset::vision::ImageFolderDataset},
     nn::loss::CrossEntropyLossConfig,
     optim::SgdConfig,
+    prelude::*,
     record::CompactRecorder,
-    tensor::{
-        backend::{AutodiffBackend, Backend},
-        Int, Tensor,
+    tensor::backend::AutodiffBackend,
+    train::{
+        metric::{AccuracyMetric, LossMetric},
+        ClassificationOutput, LearnerBuilder, TrainOutput, TrainStep, ValidStep,
     },
 };
 
 const NUM_CLASSES: u8 = 10;
 const ARTIFACT_DIR: &str = "/tmp/custom-image-dataset";
 
-impl<B: Backend> CNN<B> {
+impl<B: Backend> Cnn<B> {
     pub fn forward_classification(
         &self,
         images: Tensor<B, 4>,
@@ -41,7 +36,7 @@ impl<B: Backend> CNN<B> {
     }
 }
 
-impl<B: AutodiffBackend> TrainStep<ClassificationBatch<B>, ClassificationOutput<B>> for CNN<B> {
+impl<B: AutodiffBackend> TrainStep<ClassificationBatch<B>, ClassificationOutput<B>> for Cnn<B> {
     fn step(&self, batch: ClassificationBatch<B>) -> TrainOutput<ClassificationOutput<B>> {
         let item = self.forward_classification(batch.images, batch.targets);
 
@@ -49,7 +44,7 @@ impl<B: AutodiffBackend> TrainStep<ClassificationBatch<B>, ClassificationOutput<
     }
 }
 
-impl<B: Backend> ValidStep<ClassificationBatch<B>, ClassificationOutput<B>> for CNN<B> {
+impl<B: Backend> ValidStep<ClassificationBatch<B>, ClassificationOutput<B>> for Cnn<B> {
     fn step(&self, batch: ClassificationBatch<B>) -> ClassificationOutput<B> {
         self.forward_classification(batch.images, batch.targets)
     }
@@ -70,8 +65,15 @@ pub struct TrainingConfig {
     pub learning_rate: f64,
 }
 
+fn create_artifact_dir(artifact_dir: &str) {
+    // Remove existing artifacts before to get an accurate learner summary
+    std::fs::remove_dir_all(artifact_dir).ok();
+    std::fs::create_dir_all(artifact_dir).ok();
+}
+
 pub fn train<B: AutodiffBackend>(config: TrainingConfig, device: B::Device) {
-    std::fs::create_dir_all(ARTIFACT_DIR).ok();
+    create_artifact_dir(ARTIFACT_DIR);
+
     config
         .save(format!("{ARTIFACT_DIR}/config.json"))
         .expect("Config should be saved successfully");
@@ -103,8 +105,9 @@ pub fn train<B: AutodiffBackend>(config: TrainingConfig, device: B::Device) {
         .with_file_checkpointer(CompactRecorder::new())
         .devices(vec![device.clone()])
         .num_epochs(config.num_epochs)
+        .summary()
         .build(
-            CNN::new(NUM_CLASSES.into(), &device),
+            Cnn::new(NUM_CLASSES.into(), &device),
             config.optimizer.init(),
             config.learning_rate,
         );
